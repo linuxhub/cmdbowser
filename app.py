@@ -1,20 +1,49 @@
-import socket
+# coding=utf-8
 
+import socket
+import re
+
+#DOMAIN_NAME = 'meituan.com'
+#DOMAIN_NAME = 'www.meituan.com'
 DOMAIN_NAME = 'bj.meituan.com'
-DOMAIN_NAME = 'google.com'
+#DOMAIN_NAME = 'www.google.com'
 HOST = socket.gethostbyname(DOMAIN_NAME)
 PORT = 80
+
+def parsResponseHeaders(data):
+    spl = re.split("\r\n(.+:\ .+)\r\n", data)
+    headers = {}
+    if spl:
+        for val in spl:
+            res = re.match("(.+): (.+)", val)
+            if res:
+                headers[res.groups()[0]] = res.groups()[1]
+        headers['Status-Code'] = getStatusCode(spl[0])
+        return headers
+    return False
+
+def getStatusCode(data):
+    res = re.match("^HTTP/1.1\ (\d+)\ ", data)
+    if res:
+        return res.groups()[0]
+    return False
+
+def displayDict(d):
+    if d:
+        for (key,value) in d.items():
+            print '%s: %s' % (key, value)
+
 
 if __name__=='__main__':
     try:
         soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     except socket.error, e:
-         print 'socket false %s' % e
+         print 'Socket error`` %s' % e
 
     try:
         soc.connect((HOST, PORT))
     except socket.error, e:
-        print 'connect error %s' % e
+        print 'Connect error %s' % e
         soc.close()
 
     try:
@@ -32,28 +61,32 @@ if __name__=='__main__':
 
     data = soc.recv(1024)
     print data
-    # Content-Length
-    s = data.find('Content-Length:', 0, len(data))
-    e = data.find('Connection', 0, len(data))
-    html_idx = data.find('\r\n\r\n', 0, len(data)) + 4
-    if s == -1 or e == -1 or s == e or html_idx == 3:
-        while True:
-            recv = soc.recv(1024)
-            if recv == '0' or len(recv) == 0:
-                break
-            data += recv
-        print data
-        idx = data.find('\r\n0\r\n', 0, len(data))
-        print idx
+    headers = parsResponseHeaders(data)
+    print headers
+    displayDict(headers)
+    if not headers:
+        print '远程WEB服务器响应格式错误...exit!'
+        exit()
+    sc = int(headers["Status-Code"])
+    if sc >= 300 and sc < 400:
+        print "完成请求，需重定向至%s" % headers["Location"]
         exit()
 
-    # Transfer-Encoding
-    data_len = long(data[s + 16: e - 2]) + long(len(data[0: html_idx]))
-    print data_len
-    while True:
-        if len(data) >= data_len:
-            break
-        data += soc.recv(1024)
+    # Content-Length
+    if 'Content-Length' in headers.keys():
+        print headers['Content-Length']
+        html_idx = data.find('\r\n\r\n', 0, len(data)) + 4
+        data_len = long(headers['Content-Length']) + long(len(data[0: html_idx]))
+        while True:
+            if len(data) >= data_len:
+                break
+            data += soc.recv(1024)
+    elif 'Transfer-Encoding' in headers.keys():
+        while True:
+            recv = soc.recv(1024)
+            if len(recv) == 0:
+                break
+            data += recv
     print data
     soc.close()
 
