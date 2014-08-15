@@ -12,7 +12,7 @@ def getStrVal(s):
 
 
 def showLine():
-    print '------------------------------------------------------------'
+    print '-------------------------------------------------------------------------------'
 
 
 def parseURL(url):
@@ -133,9 +133,11 @@ def app(req):
 
     showLine()
     raw_input('恭喜，操作成功！按Enter键查看头信息...')
+    showLine()
     displayDict(headers)
     showLine()
     raw_input('继续按Enter键查看下载的网页数据...')
+    showLine()
     print html
 
     return False
@@ -158,13 +160,14 @@ if __name__=='__main__':
             count -= 1
             raw_input('敲Enter键，进行重定向操作...')
             os.system('clear')
+            showLine()
             req = parseURL(reURL)
         else:
             break
 
     showLine()
     raw_input('Done! 完成操作...按Enter键退出程序...')
-
+    os.system('clear')
 
 
 
